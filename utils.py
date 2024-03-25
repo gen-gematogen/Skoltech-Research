@@ -117,11 +117,19 @@ def to_const_points(tensor):
     return tensor
 
 def nearest_point(tensor, codebook):
-    d = np.zeros((tensor.shape[0]))
+    words, enc_words = codebook
+    d = np.zeros((tensor.shape[0], words.shape[1]))
     for i in range(tensor.shape[0]):
-        d[i] = codebook[np.argmin(np.linalg.norm(tensor[i] - codebook, axis=1))]
+        pos = np.argmin(np.linalg.norm(enc_words - tensor[i], axis=1))
+        d[i] = words[pos]
     return d
-    
+
+def gen_codebook(encoder):
+    # codebook: encoded word -> uncoded word
+    words = np.array(list(itertools.product([0, 1], repeat=k)), dtype=np.float32)
+    enc = encoder(torch.tensor(words, dtype=torch.float, device=device))
+        
+    return (words, enc.detach().numpy())
 
 if __name__ == '__main__':
     if sys.argv[1] == 'train':
@@ -190,105 +198,119 @@ if __name__ == '__main__':
         # Generate SNR vs FER plots for different models
         # --------------------------------------------------------------------------------
         
-        # snr = np.linspace(1, 5, 9)
-        # ber_dict = dict()
+        snr = np.linspace(1, 5, 9)
+        ber_dict = dict()
     
-        # for model in np.linspace(1, 5, 3):
-        #     for clip in ["no_clip", "clip"]:
-        #         encoder = Encoder(k, n, enc_layers, enc_hidden_size).to(device)
-        #         decoder = Decoder(k, n, dec_layers, dec_hidden_size).to(device)
-        #         encoder.load_state_dict(torch.load(f'/Users/gennady/Skoltech/Research/networks/model_{model:.2f}db_{clip}.pth')['encoder'])
-        #         decoder.load_state_dict(torch.load(f'/Users/gennady/Skoltech/Research/networks/model_{model:.2f}db_{clip}.pth')['decoder'])
+        for model in np.linspace(1, 5, 3):
+            for clip in ["no_clip", "clip"]:
+                encoder = Encoder(k, n, enc_layers, enc_hidden_size).to(device)
+                decoder = Decoder(k, n, dec_layers, dec_hidden_size).to(device)
+                encoder.load_state_dict(torch.load(f'/Users/gennady/Skoltech/Research/networks/model_{model:.2f}db_{clip}.pth')['encoder'])
+                decoder.load_state_dict(torch.load(f'/Users/gennady/Skoltech/Research/networks/model_{model:.2f}db_{clip}.pth')['decoder'])
                 
-        #         b=[]
-        #         for v, s in enumerate(snr):
-        #             dataset = InfWordDataset(k, num_samples, device)
-        #             dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size)
+                b=[]
+ 
+                for v, s in enumerate(snr):
+                    dataset = InfWordDataset(k, num_samples, device)
+                    dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size)
 
-        #             # evaluate the encoded data distribution density
-        #             dataset.update_dataset()
-        #             dencity = dict()
-        #             sz = 0
-        #             for iws in dataloader:
-        #                 encoded = encoder(iws)
-        #                 enc_norm = normalize_power(encoded)
-        #                 enc_clip = enc_norm#torch.clamp(enc_norm, min_clip, max_clip)
-        #                 enc_norm_noise = add_noise(enc_clip, torch.tensor(s, dtype=torch.float, device=device))
-        #                 decoded = decoder(enc_norm_noise)
-        #                 decoded = binarize(-1*decoded.detach().numpy())
-                        
-        #                 sz += np.sum(np.any(decoded != iws.detach().numpy(), axis=1))
-                    
-        #             b.append(sz / (num_samples))
-        #         ber_dict[(str(model), clip)] = b
+                    dataset.update_dataset()
+                    sz = 0
+                    for iws in dataloader:
+                        encoded = encoder(iws)
+                        enc_norm = normalize_power(encoded)
+                        enc_clip = enc_norm
+                        enc_norm_noise = add_noise(enc_clip, torch.tensor(s, dtype=torch.float, device=device))
+                        decoded = decoder(enc_norm_noise)
+                        decoded = binarize(-1*decoded.detach().numpy())
+                        sz += np.sum(np.any(decoded != iws.detach().numpy(), axis=1))
+                    b.append(sz / (num_samples))
+                ber_dict[(str(model), clip)] = b
 
-        # b = []
-        # for v, s in enumerate(snr):
-        #     dataset = InfWordDataset(k, num_samples, device)
-        #     dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size)
-        #     dataset.update_dataset()
-        #     dencity = dict()
-        #     sz = 0
-        #     for iws in dataloader:
-        #         bin_enc = to_const_points(iws.detach().clone())
-        #         enc_norm = normalize_power(bin_enc)
-        #         enc_norm_noise = add_noise(enc_norm, torch.tensor(s, dtype=torch.float, device=device))
-        #         decoded = binarize(enc_norm_noise.detach().numpy())
-        #         sz += np.sum(np.any(decoded != iws.detach().numpy(), axis=1))
-                    
-        #     b.append(sz / (num_samples))
-        # ber_dict['Uncoded'] = b
+        b = []
+        for v, s in enumerate(snr):
+            dataset = InfWordDataset(k, num_samples, device)
+            dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size)
+            dataset.update_dataset()
+            dencity = dict()
+            sz = 0
+            for iws in dataloader:
+                bin_enc = to_const_points(iws.detach().clone())
+                enc_norm = normalize_power(bin_enc)
+                enc_norm_noise = add_noise(enc_norm, torch.tensor(s, dtype=torch.float, device=device))
+                decoded = binarize(enc_norm_noise.detach().numpy())
+                sz += np.sum(np.any(decoded != iws.detach().numpy(), axis=1))    
+            b.append(sz / (num_samples))
+        ber_dict['Uncoded'] = b
         
-        # for k in ber_dict:
-        #     if k == 'Uncoded' or k == 'MSE':
-        #         plt.plot(snr, ber_dict[k], label = k, linestyle='--')
-        #     else:
-        #         plt.plot(snr, ber_dict[k], label = f"Training SNR: {k[0]}, {k[1]}", linestyle='--')
-        # plt.grid()
-        # plt.xlabel("SNR")
-        # plt.ylabel("FER")
-        # plt.title("FER vs SNR for different models")
-        # plt.yscale('log')
-        # plt.yticks([1e-3, 1e-2, 1e-1, 1])
-        # plt.legend()
-        # plt.show()
+        b = []
+        encoder = Encoder(k, n, enc_layers, enc_hidden_size).to(device)
+        encoder.load_state_dict(torch.load(f'/Users/gennady/Skoltech/Research/networks/model_1.00db_clip.pth')['encoder'])
+        codebook = gen_codebook(encoder)
+        for v, s in enumerate(snr):
+            dataset = InfWordDataset(k, num_samples, device)
+            dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size)
+            dataset.update_dataset()
+            dencity = dict()
+            sz = 0
+            for iws in dataloader:
+                bin_enc = encoder(iws.detach().clone())
+                enc_norm = normalize_power(bin_enc)
+                enc_norm_noise = add_noise(enc_norm, torch.tensor(s, dtype=torch.float, device=device))
+                decoded = nearest_point(enc_norm_noise.detach().numpy(), codebook)
+                sz += np.sum(np.any(decoded != iws.detach().numpy(), axis=1))
+            b.append(sz / (num_samples))
+        ber_dict['Minimal distance decoding'] = b
+        
+        plt.figure(figsize=(10, 5))
+        for k in ber_dict:
+            if k == 'Uncoded' or k == 'Minimal distance decoding':
+                plt.plot(snr, ber_dict[k], label = k, linestyle='--', marker='o')
+            else:
+                plt.plot(snr, ber_dict[k], label = f"Training SNR: {k[0]}, {k[1]}", linestyle='--', marker='d')
+        plt.grid()
+        plt.xlabel("SNR")
+        plt.ylabel("FER")
+        plt.title("FER vs SNR for different models")
+        plt.yscale('log')
+        plt.yticks([1e-3, 1e-2, 1e-1, 1])
+        plt.legend()
+        plt.show()
         
         # --------------------------------------------------------------------------------
         # Generate the distribution density of the encoded data
         # --------------------------------------------------------------------------------
         
-        ax, fig = plt.subplots(1, 2, figsize=(10, 5))
+        # ax, fig = plt.subplots(1, 2, figsize=(10, 5))
         
-        model = 1.00
-        for j, clip in enumerate(["no_clip", "clip"]):
-            encoder = Encoder(k, n, enc_layers, enc_hidden_size).to(device)
-            encoder.load_state_dict(torch.load(f'/Users/gennady/Skoltech/Research/networks/model_{model:.2f}db_{clip}.pth')['encoder'])
+        # model = 1.00
+        # for j, clip in enumerate(["no_clip", "clip"]):
+        #     encoder = Encoder(k, n, enc_layers, enc_hidden_size).to(device)
+        #     encoder.load_state_dict(torch.load(f'/Users/gennady/Skoltech/Research/networks/model_{model:.2f}db_{clip}.pth')['encoder'])
             
-            dataset = InfWordDataset(k, num_samples, device)
-            dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size)
-            dataset.update_dataset()
+        #     dataset = InfWordDataset(k, num_samples, device)
+        #     dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size)
+        #     dataset.update_dataset()
             
-            dencity = np.zeros((n))
+        #     dencity = np.zeros((n))
             
-            p=0
-            for iws in dataloader:
-                p+=1
-                encoded = encoder(iws)
-                enc_norm = normalize_power(encoded)
+        #     p=0
+        #     for iws in dataloader:
+        #         p+=1
+        #         encoded = encoder(iws)
+        #         enc_norm = normalize_power(encoded)
                 
-                dencity += np.mean(enc_norm.detach().numpy(), axis=0)
+        #         dencity += np.mean(enc_norm.detach().numpy(), axis=0)
                         
-            dencity /= p
+        #     dencity /= p
                 
-            fig[j].bar(range(1, 17), dencity, width=0.5)
-            fig[j].set_title(f"Training SNR: {model}db, {clip}")
-            fig[j].grid()
-            fig[j].set_xlabel("Bin number")
-            fig[j].set_ylabel("Mean value")
-            fig[j].set_xticks(range(1, 17, 2))
-        #plt.grid()
-        #plt.xlabel("Vlue")
-        #plt.ylabel("Density")
-        plt.show()
+        #     fig[j].bar(range(1, 17), dencity, width=0.5)
+        #     fig[j].set_title(f"Training SNR: {model}db, {clip}")
+        #     fig[j].grid()
+        #     fig[j].set_xlabel("Bin number")
+        #     fig[j].set_ylabel("Mean value")
+        #     fig[j].set_xticks(range(1, 17, 2))
+
+        # plt.show()
         
 
