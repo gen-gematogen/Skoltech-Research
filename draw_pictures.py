@@ -17,70 +17,85 @@ def snr_vs_ber(snr = np.linspace(1, 5, 9),
     Generate SNR vs FER plots for different models
     '''
 
-
+    clip_list = ['clip']
+    model_list = [100.0]
+    snr = np.linspace(0,100,10)
     ber_dict = dict()
 
     for model in model_list:
         for clip in clip_list:
-            encoder = Encoder(k, n, enc_layers, enc_hidden_size).to(device)
-            decoder = Decoder(k, n, dec_layers, dec_hidden_size).to(device)
-            encoder.load_state_dict(torch.load(PATH + f'model_{model:.2f}db_{clip}.pth')['encoder'])
-            decoder.load_state_dict(torch.load(PATH + f'model_{model:.2f}db_{clip}.pth')['decoder'])
+            encoder_list = [Encoder(k1, n1, enc_layers, enc_hidden_size).to(device), Encoder(k2, n2, enc_layers, enc_hidden_size).to(device)]
+            decoder_list = [Decoder(k2, n2, dec_layers, dec_hidden_size).to(device), Decoder(k1, n1, dec_layers, dec_hidden_size).to(device)]
+            
+            for i in range(len(encoder_list)):
+                encoder_list[i].load_state_dict(torch.load(PATH + f'model_product_{model:.2f}db_{clip}.pth')[f'encoder{i}'])
+            for i in range(len(decoder_list)):
+                decoder_list[i].load_state_dict(torch.load(PATH + f'model_product_{model:.2f}db_{clip}.pth')[f'decoder{i}'])
             
             b=[]
 
             for v, s in enumerate(snr):
-                dataset = InfWordDataset(k, num_samples, device)
+                dataset = InfWordDataset(k1, k2, num_samples, device)
                 dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size)
 
                 dataset.update_dataset()
                 sz = 0
                 for iws in dataloader:
-                    encoded = encoder(iws)
+                    #encoded = encoder(iws)
+                    cur = iws.detach().clone()
+                    for enc in encoder_list:
+                        cur = enc(cur)
+                        cur = torch.permute(cur, (0,2,1))
+                    encoded = cur
                     enc_norm = normalize_power(encoded)
                     enc_clip = enc_norm
                     enc_norm_noise = add_noise(enc_clip, torch.tensor(s, dtype=torch.float, device=device))
-                    decoded = decoder(enc_norm_noise)
+                    #decoded = decoder(enc_norm_noise)
+                    cur = enc_norm_noise.detach().clone()
+                    for dec in decoder_list:
+                        cur = dec(cur)
+                        cur = torch.permute(cur, (0,2,1))
+                    decoded = cur
                     decoded = binarize(-1*decoded.detach().numpy())
                     sz += np.sum(decoded != iws.detach().numpy())
-                b.append(sz / (num_samples*k))
+                b.append(sz / (num_samples*k1*k2))
             ber_dict[(str(model), clip)] = b
 
 
-    b = []
-    for v, s in enumerate(snr):
-        dataset = InfWordDataset(k, num_samples, device)
-        dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size)
-        dataset.update_dataset()
-        sz = 0
-        for iws in dataloader:
-            bin_enc = to_const_points(iws.detach().clone())
-            enc_norm = normalize_power(bin_enc)
-            enc_norm_noise = add_noise(enc_norm, torch.tensor(s, dtype=torch.float, device=device))
-            decoded = binarize(enc_norm_noise.detach().numpy())
-            sz += np.sum(decoded != iws.detach().numpy())    
-        b.append(sz / (num_samples*k))
-    ber_dict['Uncoded'] = b
+    # b = []
+    # for v, s in enumerate(snr):
+    #     dataset = InfWordDataset(k, num_samples, device)
+    #     dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size)
+    #     dataset.update_dataset()
+    #     sz = 0
+    #     for iws in dataloader:
+    #         bin_enc = to_const_points(iws.detach().clone())
+    #         enc_norm = normalize_power(bin_enc)
+    #         enc_norm_noise = add_noise(enc_norm, torch.tensor(s, dtype=torch.float, device=device))
+    #         decoded = binarize(enc_norm_noise.detach().numpy())
+    #         sz += np.sum(decoded != iws.detach().numpy())    
+    #     b.append(sz / (num_samples*k))
+    # ber_dict['Uncoded'] = b
     
-    b = []
-    encoder = Encoder(k, n, enc_layers, enc_hidden_size).to(device)
-    encoder.load_state_dict(torch.load(PATH + 'model_1.00db_clip.pth')['encoder'])
-    codebook = gen_codebook(encoder)
-    for v, s in enumerate(snr):
-        dataset = InfWordDataset(k, num_samples, device)
-        dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size)
-        dataset.update_dataset()
-        sz = 0
-        for iws in dataloader:
-            bin_enc = encoder(iws.detach().clone())
-            enc_norm = normalize_power(bin_enc)
-            enc_norm_noise = add_noise(enc_norm, torch.tensor(s, dtype=torch.float, device=device))
-            decoded = nearest_point(enc_norm_noise.detach().numpy(), codebook)
-            sz += np.sum(decoded != iws.detach().numpy())
-        b.append(sz / (num_samples*k))
-    ber_dict['Minimal distance decoding'] = b
+    # b = []
+    # encoder = Encoder(k, n, enc_layers, enc_hidden_size).to(device)
+    # encoder.load_state_dict(torch.load(PATH + 'model_1.00db_clip.pth')['encoder'])
+    # codebook = gen_codebook(encoder)
+    # for v, s in enumerate(snr):
+    #     dataset = InfWordDataset(k, num_samples, device)
+    #     dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size)
+    #     dataset.update_dataset()
+    #     sz = 0
+    #     for iws in dataloader:
+    #         bin_enc = encoder(iws.detach().clone())
+    #         enc_norm = normalize_power(bin_enc)
+    #         enc_norm_noise = add_noise(enc_norm, torch.tensor(s, dtype=torch.float, device=device))
+    #         decoded = nearest_point(enc_norm_noise.detach().numpy(), codebook)
+    #         sz += np.sum(decoded != iws.detach().numpy())
+    #     b.append(sz / (num_samples*k))
+    # ber_dict['Minimal distance decoding'] = b
     
-    ber_dict['Gaussian (16, 8) code'] = [4.08333333e-03, 1.75000000e-03, 5.00000000e-04, 3.12500000e-04, 6.25000000e-05, 0.00000000e+00, 0.00000000e+00, 0.00000000e+00, 0.00000000e+00]
+    # ber_dict['Gaussian (16, 8) code'] = [4.08333333e-03, 1.75000000e-03, 5.00000000e-04, 3.12500000e-04, 6.25000000e-05, 0.00000000e+00, 0.00000000e+00, 0.00000000e+00, 0.00000000e+00]
     
     plt.figure(figsize=(10, 5))
     for q in ber_dict:

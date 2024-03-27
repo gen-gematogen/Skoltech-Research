@@ -9,22 +9,24 @@ from torch import nn
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-k = 8
-n = 16
+k1 = 8
+n1 = 16
+k2 = 8
+n2 = 16
 enc_layers = 3
 dec_layers = 3
 enc_hidden_size = 96
 dec_hidden_size = 96
 num_decoder_epochs = 400
 num_encoder_epochs = 200
-total_num_epochs = 30
+total_num_epochs = 10#30
 min_clip = -1.6
 max_clip = 1.6
-num_samples = int(5e3)
-batch_size = int(5e2)
+num_samples = int(5e2)#int(5e3)
+batch_size = int(5e1)#int(5e2)
 snr_db = torch.tensor(2, dtype=torch.float, device=device)
-encoder_learning_rate = 2e-5
-decoder_learning_rate = 2e-5
+encoder_learning_rate = 1e-4#2e-5
+decoder_learning_rate = 1e-4#2e-5
 
 
 class Encoder(nn.Module):
@@ -77,13 +79,15 @@ class Decoder(nn.Module):
         return logits
     
 class InfWordDataset(torch.utils.data.Dataset):
-    def __init__(self, k, num_samples, device):
-        self.k = k
+    def __init__(self, k1, k2, num_samples, device):
+        self.k1 = k1
+        self.k2 = k2
         self.num_samples = num_samples
         self.device = device
 
     def update_dataset(self):
-        self.iws = torch.randint(low=0, high=2, size=(self.num_samples, self.k), dtype=torch.float, device=self.device)
+        self.iws = torch.randint(low=0, high=2, size=(self.num_samples, self.k1*self.k2), dtype=torch.float, device=self.device)
+        self.iws = self.iws.reshape((self.num_samples, self.k1, self.k2))
     
     def __len__(self):
         return self.num_samples
