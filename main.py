@@ -33,19 +33,25 @@ if __name__ == '__main__':
                 for iws in dataloader:
                     for dec in dec_optimizer_list:
                         dec.zero_grad()
+                        
                     cur = iws.detach().clone()
                     for enc in encoder_list:
                         cur = enc(cur)
                         cur = torch.permute(cur, (0,2,1))
                     encoded = cur
+                    encoded = encoded.reshape((batch_size, n1*n2))
+                    
                     enc_norm = normalize_power(encoded)
                     enc_clip = torch.clamp(enc_norm, min_clip, max_clip)
                     enc_norm_noise = add_noise(enc_clip, snr_db)
+                    
                     cur = enc_norm_noise.detach().clone()
+                    cur = cur.reshape((batch_size, n1, n2))
                     for dec in decoder_list:
                         cur = dec(cur)
                         cur = torch.permute(cur, (0,2,1))
                     decoded = cur
+                    
                     loss = loss_fn(-1*decoded, iws)
                     loss.backward()
                     for dec_opt in dec_optimizer_list:
@@ -59,19 +65,25 @@ if __name__ == '__main__':
                 for iws in dataloader:
                     for enc_opt in enc_optimizer_list:
                         enc_opt.zero_grad()
+                        
                     cur = iws.detach().clone()
                     for enc in encoder_list:
                         cur = enc(cur)
                         cur = torch.permute(cur, (0,2,1))
                     encoded = cur
+                    encoded = encoded.reshape((batch_size, n1*n2))
+                    
                     enc_norm = normalize_power(encoded)
                     enc_clip = torch.clamp(enc_clip, min_clip, max_clip)
                     enc_norm_noisy = add_noise(enc_norm, snr_db)
+                    
                     cur = enc_norm_noise.detach().clone()
+                    cur = cur.reshape((batch_size, n1, n2))
                     for dec in decoder_list:
                         cur = dec(cur)
                         cur = torch.permute(cur, (0,2,1))
                     decoded = cur
+                    
                     loss = loss_fn(-1*decoded, iws)
                     loss.backward()
                     for enc_opt in enc_optimizer_list:
