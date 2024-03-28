@@ -43,8 +43,8 @@ if __name__ == '__main__':
                     enc_norm_noise = add_noise(enc_clip, snr_db)
                     cur = enc_norm_noise.detach().clone() # remove detach method and possibly clone
                     for dec in decoder_list:
-                        cur = dec(cur)
                         cur = torch.permute(cur, (0,2,1))
+                        cur = dec(cur)
                     decoded = cur
                     loss = loss_fn(-1*decoded, iws)
                     loss.backward()
