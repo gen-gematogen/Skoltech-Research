@@ -33,12 +33,17 @@ if __name__ == '__main__':
                 for iws in dataloader:
                     for dec in dec_optimizer_list:
                         dec.zero_grad()
+<<<<<<< HEAD
                         
                     cur = iws.detach().clone()
+=======
+                    cur = iws.detach().clone() 
+>>>>>>> eb7ab200ec918cff227ce5561b325f93d3c17103
                     for enc in encoder_list:
                         cur = enc(cur)
                         cur = torch.permute(cur, (0,2,1))
                     encoded = cur
+<<<<<<< HEAD
                     encoded = encoded.reshape((batch_size, n1*n2))
                     
                     enc_norm = normalize_power(encoded)
@@ -47,9 +52,15 @@ if __name__ == '__main__':
                     
                     cur = enc_norm_noise.detach().clone()
                     cur = cur.reshape((batch_size, n1, n2))
+=======
+                    enc_norm = normalize_power(encoded) # check normalization 
+                    enc_clip = torch.clamp(enc_norm, min_clip, max_clip)
+                    enc_norm_noise = add_noise(enc_clip, snr_db)
+                    cur = enc_norm_noise.detach().clone() # remove detach method and possibly clone
+>>>>>>> eb7ab200ec918cff227ce5561b325f93d3c17103
                     for dec in decoder_list:
-                        cur = dec(cur)
                         cur = torch.permute(cur, (0,2,1))
+                        cur = dec(cur)
                     decoded = cur
                     
                     loss = loss_fn(-1*decoded, iws)
