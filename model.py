@@ -94,6 +94,46 @@ class InfWordDataset(torch.utils.data.Dataset):
     
     def __getitem__(self, idx):
         return self.iws[idx]
+    
+def pipeline(encoder_list, decoder_list, enc_optimizer_list, dec_optimizer_list, loss_fn, iws, freeze_enc = True, freeze_dec = True):
+    if not freeze_dec:
+        for dec in dec_optimizer_list:
+            dec.zero_grad()
+    if not freeze_enc:
+        for enc in enc_optimizer_list:
+            enc.zero_grad()
+
+    cur = iws.detach().clone() 
+
+    for enc in encoder_list:
+        cur = enc(cur)
+        cur = torch.permute(cur, (0,2,1))
+    encoded = cur
+    encoded = encoded.reshape((batch_size, n1*n2))
+    
+    enc_norm = normalize_power(encoded)
+    enc_clip = torch.clamp(enc_norm, min_clip, max_clip)
+    enc_norm_noise = add_noise(enc_clip, snr_db)
+    
+    cur = enc_norm_noise
+    cur = cur.reshape((batch_size, n1, n2))
+
+    for dec in decoder_list:
+        cur = torch.permute(cur, (0,2,1))
+        cur = dec(cur)
+    decoded = cur
+    
+    loss = loss_fn(-1*decoded, iws)
+    loss.backward()
+    
+    if not freeze_dec:
+        for dec_opt in dec_optimizer_list:
+            dec_opt.step()
+    if not freeze_enc:
+        for enc_opt in enc_optimizer_list:
+            enc_opt.step()
+    
+    return loss
 
 
 def add_noise(message, snr_db):

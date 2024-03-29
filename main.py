@@ -32,33 +32,7 @@ if __name__ == '__main__':
             for epoch in range(num_decoder_epochs):
                 dataset.update_dataset()
                 for iws in dataloader:
-                    for dec in dec_optimizer_list:
-                        dec.zero_grad()
-
-                    cur = iws.detach().clone() 
-
-                    for enc in encoder_list:
-                        cur = enc(cur)
-                        cur = torch.permute(cur, (0,2,1))
-                    encoded = cur
-                    encoded = encoded.reshape((batch_size, n1*n2))
-                    
-                    enc_norm = normalize_power(encoded)
-                    enc_clip = torch.clamp(enc_norm, min_clip, max_clip)
-                    enc_norm_noise = add_noise(enc_clip, snr_db)
-                    
-                    cur = enc_norm_noise
-                    cur = cur.reshape((batch_size, n1, n2))
-
-                    for dec in decoder_list:
-                        cur = torch.permute(cur, (0,2,1))
-                        cur = dec(cur)
-                    decoded = cur
-                    
-                    loss = loss_fn(-1*decoded, iws)
-                    loss.backward()
-                    for dec_opt in dec_optimizer_list:
-                        dec_opt.step()
+                    loss = pipeline(encoder_list, decoder_list, enc_optimizer_list, dec_optimizer_list, loss_fn, iws, freeze_enc=True, freeze_dec=False)
 
             pbar.set_description(f"Decoder training, loss: {loss.item():.6f}, epoch: {global_ep_idx}")
             print()
@@ -66,32 +40,7 @@ if __name__ == '__main__':
             for epoch in range(num_encoder_epochs):
                 dataset.update_dataset()
                 for iws in dataloader:
-                    for enc_opt in enc_optimizer_list:
-                        enc_opt.zero_grad()
-                        
-                    cur = iws.detach().clone()
-                    for enc in encoder_list:
-                        cur = enc(cur)
-                        cur = torch.permute(cur, (0,2,1))
-                    encoded = cur
-                    encoded = encoded.reshape((batch_size, n1*n2))
-                    
-                    enc_norm = normalize_power(encoded)
-                    enc_clip = torch.clamp(enc_norm, min_clip, max_clip)
-                    enc_norm_noise = add_noise(enc_norm, snr_db)
-                    
-                    cur = enc_norm_noise
-                    cur = cur.reshape((batch_size, n1, n2))
-                    
-                    for dec in decoder_list:
-                        cur = torch.permute(cur, (0,2,1))
-                        cur = dec(cur)
-                    decoded = cur
-                    
-                    loss = loss_fn(-1*decoded, iws)
-                    loss.backward()
-                    for enc_opt in enc_optimizer_list:
-                        enc_opt.step()
+                    loss = pipeline(encoder_list, decoder_list, enc_optimizer_list, dec_optimizer_list, loss_fn, iws, freeze_enc=False, freeze_dec=True)
 
             pbar.set_description(f"Encoder training, loss: {loss.item():.6f}, epoch: {global_ep_idx}")
             print()
