@@ -10,7 +10,7 @@ from model import *
 PATH = "/Users/gennady/Skoltech/Research/networks/"
 
 def snr_vs_ber(snr = np.linspace(1, 5, 9),
-               model_list = np.linspace(1.0, 1.0, 1),
+               model_list = np.linspace(1.0, 5.0, 9),
                clip_list = ["no_clip", "clip"],
                ):
     '''

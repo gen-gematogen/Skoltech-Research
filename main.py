@@ -53,10 +53,10 @@ if __name__ == '__main__':
                     encoded = encoder(iws)
                     enc_norm = normalize_power(encoded)
                     
-                    enc_clip = torch.clamp(enc_clip, min_clip, max_clip)
+                    enc_clip = torch.clamp(enc_norm, min_clip, max_clip)
                     
-                    enc_norm_noisy = add_noise(enc_norm, snr_db)
-                    decoded = decoder(enc_norm_noisy)
+                    enc_norm_noise = add_noise(enc_clip, snr_db)
+                    decoded = decoder(enc_norm_noise)
                     loss = loss_fn(-1*decoded, iws)
                     loss.backward()
                     enc_optimizer.step()
@@ -72,4 +72,4 @@ if __name__ == '__main__':
             },
             f'model_{snr_db.cpu().numpy():.2f}db_clip.pth')
     elif sys.argv[1] == 'test':
-        pdf_distribution()
+        snr_vs_ber()
