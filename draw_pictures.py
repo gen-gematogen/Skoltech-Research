@@ -10,7 +10,7 @@ from model import *
 PATH = "/Users/gennady/Skoltech/Research/networks/"
 
 def snr_vs_ber(snr = np.linspace(1, 5, 9),
-               model_list = np.linspace(1.0, 5.0, 9),
+               model_list = np.linspace(1.0, 5.0, 3),
                clip_list = ["no_clip", "clip"],
                ):
     '''
@@ -114,24 +114,28 @@ def encoded_distribution():
         dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size)
         dataset.update_dataset()
         
-        dencity = np.zeros((n))
+        dencity = dict()
         
-        p=0
         for iws in dataloader:
-            p+=1
             encoded = encoder(iws)
             enc_norm = normalize_power(encoded)
+            enc_norm = np.round(enc_norm.detach().numpy(), 2).flatten()
             
-            dencity += np.mean(enc_norm.detach().numpy(), axis=0)
+            for i in enc_norm:
+                if i not in dencity:
+                    dencity[i] = 1
+                else:
+                    dencity[i] += 1
                     
-        dencity /= p
-            
-        fig[j].bar(range(1, 17), dencity, width=0.5)
+        x = np.array([i for i in sorted(dencity.keys())])
+        y = np.array([dencity[i] for i in x]) / (num_samples * k)
+
+        #fig[j].bar(range(1, 17), dencity, width=0.5)
+        fig[j].plot(x, y)
         fig[j].set_title(f"Training SNR: {model}db, {clip}")
         fig[j].grid()
-        fig[j].set_xlabel("Bin number")
-        fig[j].set_ylabel("Mean value")
-        fig[j].set_xticks(range(1, 17, 2))
+        fig[j].set_xlabel("Value")
+        fig[j].set_ylabel("Density")
 
     plt.show()
     
