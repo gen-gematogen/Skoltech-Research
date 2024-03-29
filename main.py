@@ -77,8 +77,8 @@ if __name__ == '__main__':
                     encoded = encoded.reshape((batch_size, n1*n2))
                     
                     enc_norm = normalize_power(encoded)
-                    enc_clip = torch.clamp(enc_clip, min_clip, max_clip)
-                    enc_norm_noisy = add_noise(enc_norm, snr_db)
+                    enc_clip = torch.clamp(enc_norm, min_clip, max_clip)
+                    enc_norm_noise = add_noise(enc_norm, snr_db)
                     
                     cur = enc_norm_noise
                     cur = cur.reshape((batch_size, n1, n2))

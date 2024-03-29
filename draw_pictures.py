@@ -18,8 +18,8 @@ def snr_vs_ber(snr = np.linspace(1, 5, 9),
     '''
 
     clip_list = ['clip']
-    model_list = [100.0]
-    snr = np.linspace(0,100,10)
+    model_list = [1.0]
+    snr = np.linspace(-10,10,21)
     ber_dict = dict()
 
     for model in model_list:
@@ -35,64 +35,75 @@ def snr_vs_ber(snr = np.linspace(1, 5, 9),
             b=[]
 
             for v, s in enumerate(snr):
+                snr_db = torch.tensor(s, dtype=torch.float, device=device)
                 dataset = InfWordDataset(k1, k2, num_samples, device)
                 dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size)
 
                 dataset.update_dataset()
                 sz = 0
                 for iws in dataloader:
-                    #encoded = encoder(iws)
-                    cur = iws.detach().clone()
+                    cur = iws.detach().clone() 
                     for enc in encoder_list:
                         cur = enc(cur)
                         cur = torch.permute(cur, (0,2,1))
                     encoded = cur
+                    encoded = encoded.reshape((batch_size, n1*n2))
+                    
                     enc_norm = normalize_power(encoded)
-                    enc_clip = enc_norm
-                    enc_norm_noise = add_noise(enc_clip, torch.tensor(s, dtype=torch.float, device=device))
-                    #decoded = decoder(enc_norm_noise)
-                    cur = enc_norm_noise.detach().clone()
+                    enc_norm_noise = add_noise(enc_norm, snr_db)
+                    
+                    cur = enc_norm_noise
+                    cur = cur.reshape((batch_size, n1, n2))
+
                     for dec in decoder_list:
-                        cur = dec(cur)
                         cur = torch.permute(cur, (0,2,1))
+                        cur = dec(cur)
                     decoded = cur
+                    
                     decoded = binarize(-1*decoded.detach().numpy())
-                    sz += np.sum(decoded != iws.detach().numpy())
+                    sz += np.sum(decoded != iws.numpy())
                 b.append(sz / (num_samples*k1*k2))
             ber_dict[(str(model), clip)] = b
 
 
-    # b = []
-    # for v, s in enumerate(snr):
-    #     dataset = InfWordDataset(k, num_samples, device)
-    #     dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size)
-    #     dataset.update_dataset()
-    #     sz = 0
-    #     for iws in dataloader:
-    #         bin_enc = to_const_points(iws.detach().clone())
-    #         enc_norm = normalize_power(bin_enc)
-    #         enc_norm_noise = add_noise(enc_norm, torch.tensor(s, dtype=torch.float, device=device))
-    #         decoded = binarize(enc_norm_noise.detach().numpy())
-    #         sz += np.sum(decoded != iws.detach().numpy())    
-    #     b.append(sz / (num_samples*k))
-    # ber_dict['Uncoded'] = b
+    b = []
+    for v, s in enumerate(snr):
+        dataset = InfWordDataset(k1, k2, num_samples, device)
+        dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size)
+        dataset.update_dataset()
+        sz = 0
+        for iws in dataloader:
+            bin_enc = to_const_points(iws.detach().clone())
+            bin_enc = bin_enc.reshape((batch_size, k1*k2))
+            enc_norm = normalize_power(bin_enc)
+            enc_norm_noise = add_noise(enc_norm, torch.tensor(s, dtype=torch.float, device=device))
+            decoded = binarize(enc_norm_noise.detach().numpy())
+            decoded = decoded.reshape((batch_size, k1, k2))
+            sz += np.sum(decoded != iws.detach().numpy())    
+        b.append(sz / (num_samples*k1*k2))
+    ber_dict['Uncoded'] = b
     
     # b = []
-    # encoder = Encoder(k, n, enc_layers, enc_hidden_size).to(device)
-    # encoder.load_state_dict(torch.load(PATH + 'model_1.00db_clip.pth')['encoder'])
-    # codebook = gen_codebook(encoder)
+    # encoder_list = [Encoder(k1, n1, enc_layers, enc_hidden_size).to(device), Encoder(k2, n2, enc_layers, enc_hidden_size).to(device)]
+    # for i in range(len(encoder_list)):
+    #     encoder_list[i].load_state_dict(torch.load(PATH + f'model_product_{model:.2f}db_{clip}.pth')[f'encoder{i}'])
+    # codebook = gen_codebook(encoder_list)
     # for v, s in enumerate(snr):
-    #     dataset = InfWordDataset(k, num_samples, device)
+    #     dataset = InfWordDataset(k1, k2, num_samples, device)
     #     dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size)
     #     dataset.update_dataset()
     #     sz = 0
     #     for iws in dataloader:
-    #         bin_enc = encoder(iws.detach().clone())
+    #         cur = iws.detach().clone() 
+    #         for enc in encoder_list:
+    #             cur = enc(cur)
+    #             cur = torch.permute(cur, (0,2,1))
+    #         bin_enc = cur.reshape((batch_size, n1*n2))
     #         enc_norm = normalize_power(bin_enc)
     #         enc_norm_noise = add_noise(enc_norm, torch.tensor(s, dtype=torch.float, device=device))
-    #         decoded = nearest_point(enc_norm_noise.detach().numpy(), codebook)
+    #         decoded = nearest_point(enc_norm_noise.detach().numpy(), codebook).reshape((batch_size, k1, k2))
     #         sz += np.sum(decoded != iws.detach().numpy())
-    #     b.append(sz / (num_samples*k))
+    #     b.append(sz / (num_samples*k1*k2))
     # ber_dict['Minimal distance decoding'] = b
     
     # ber_dict['Gaussian (16, 8) code'] = [4.08333333e-03, 1.75000000e-03, 5.00000000e-04, 3.12500000e-04, 6.25000000e-05, 0.00000000e+00, 0.00000000e+00, 0.00000000e+00, 0.00000000e+00]

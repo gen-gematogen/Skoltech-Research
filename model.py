@@ -125,9 +125,12 @@ def nearest_point(tensor, codebook):
         d[i] = words[pos]
     return d
 
-def gen_codebook(encoder):
+def gen_codebook(encoder_list):
     # codebook: encoded word -> uncoded word
-    words = np.array(list(itertools.product([0, 1], repeat=k)), dtype=np.float32)
-    enc = encoder(torch.tensor(words, dtype=torch.float, device=device))
-        
-    return (words, enc.detach().numpy())
+    words = np.array(list(itertools.product([0, 1], repeat=k1*k2)), dtype=np.float32).reshape(-1, k1, k2)
+    cur = torch.tensor(words, dtype=torch.float, device=device)
+    for enc in encoder_list:
+        cur = enc(cur)
+        cur = torch.permute(cur, (0,2,1))    
+    
+    return (words, cur.detach().numpy())
