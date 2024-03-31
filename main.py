@@ -32,10 +32,19 @@ if __name__ == '__main__':
             for epoch in range(num_decoder_epochs):
                 dataset.update_dataset()
                 for iws in dataloader:
+                    for e in enc_optimizer_list:
+                        e.zero_grad()
+                    
                     enc_data = encoder_pipeline(encoder_list, iws.detach().clone())
-                    enc_data_noise = add_noise(enc_data, snr_db)
+                    enc_data = torch.clamp(enc_data, min_clip, max_clip)
+                    enc_data_noise = add_noise(enc_data, snr_db).reshape(-1, n1, n2)
                     dec_data = decoder_pipeline(decoder_list, enc_data_noise)
-                    loss
+                    
+                    loss = loss_fn(-1*dec_data, iws)
+                    loss.backward()
+                    
+                    for e in enc_optimizer_list:
+                        e.step()
 
             pbar.set_description(f"Decoder training, loss: {loss.item():.6f}, epoch: {global_ep_idx}")
             print()
