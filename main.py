@@ -32,7 +32,10 @@ if __name__ == '__main__':
             for epoch in range(num_decoder_epochs):
                 dataset.update_dataset()
                 for iws in dataloader:
-                    loss = pipeline(encoder_list, decoder_list, enc_optimizer_list, dec_optimizer_list, loss_fn, iws, freeze_enc=True, freeze_dec=False)
+                    enc_data = encoder_pipeline(encoder_list, iws.detach().clone())
+                    enc_data_noise = add_noise(enc_data, snr_db)
+                    dec_data = decoder_pipeline(decoder_list, enc_data_noise)
+                    loss
 
             pbar.set_description(f"Decoder training, loss: {loss.item():.6f}, epoch: {global_ep_idx}")
             print()

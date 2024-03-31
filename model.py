@@ -95,48 +95,16 @@ class InfWordDataset(torch.utils.data.Dataset):
     
     def __getitem__(self, idx):
         return self.iws[idx]
-    
-def pipeline(encoder_list, decoder_list, enc_optimizer_list, dec_optimizer_list, loss_fn, iws, freeze_enc = True, freeze_dec = True):
-    if not freeze_dec:
-        for dec in dec_optimizer_list:
-            dec.zero_grad()
-    if not freeze_enc:
-        for enc in enc_optimizer_list:
-            enc.zero_grad()
 
-    cur = iws.detach().clone() 
-
-    for enc in encoder_list:
-        cur = enc(cur)
-        cur = torch.permute(cur, (0,2,1))
-    encoded = cur
-    encoded = encoded.reshape((batch_size, n1*n2))
-    
+def encoder_pipeline(encoder_pair, x):
+    for enc in encoder_pair:
+        x = enc(x)
+        x = torch.permute(x, (0,2,1))
+    encoded = x.reshape((batch_size, n1*n2))
     enc_norm = normalize_power(encoded)
-    enc_clip = torch.clamp(enc_norm, min_clip, max_clip)
-    enc_norm_noise = add_noise(enc_clip, snr_db)
-    
-    cur = enc_norm_noise
-    cur = cur.reshape((batch_size, n1, n2))
+    return enc_norm
 
-    for dec in decoder_list:
-        cur = torch.permute(cur, (0,2,1))
-        cur = dec(cur)
-    decoded = cur
-    
-    loss = loss_fn(-1*decoded, iws)
-    loss.backward()
-    
-    if not freeze_dec:
-        for dec_opt in dec_optimizer_list:
-            dec_opt.step()
-    if not freeze_enc:
-        for enc_opt in enc_optimizer_list:
-            enc_opt.step()
-    
-    return loss
-
-def decoder_pipeline(decoder_list, dec_optimizer_list, loss_fn, y, freeze_dec = True):
+def decoder_pipeline(decoder_list, y):
     for i, decoder_pair in enumerate(decoder_list[:-1]):
         if i == 0:
             y_2 = decoder_pair[0](y).reshape(-1, F * n1, n2)
