@@ -115,7 +115,7 @@ def snr_vs_ber(snr = np.linspace(1, 5, 9),
     plt.grid()
     plt.xlabel("SNR")
     plt.ylabel("BER")
-    plt.title("BER vs SNR for different models")
+    plt.title("BER vs SNR for topology from article")
     plt.yscale('log')
     plt.yticks([1e-3, 1e-2, 1e-1, 1])
     plt.legend()
