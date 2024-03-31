@@ -25,12 +25,23 @@ def snr_vs_ber(snr = np.linspace(1, 5, 9),
     for model in model_list:
         for clip in clip_list:
             encoder_list = [Encoder(k1, n1, enc_layers, enc_hidden_size).to(device), Encoder(k2, n2, enc_layers, enc_hidden_size).to(device)]
-            decoder_list = [Decoder(k2, n2, dec_layers, dec_hidden_size).to(device), Decoder(k1, n1, dec_layers, dec_hidden_size).to(device)]
+            
+            decoder_list = []
+            for i in range(I):
+                if i == 0:
+                    decoder_list.append([Decoder(n2, F * n2, dec_layers, dec_hidden_size).to(device), Decoder((1 + F) * n1, F * n1, dec_layers, dec_hidden_size).to(device)])
+                elif i == I - 1:
+                    decoder_list.append([Decoder((1 + F) * n2, F * k2, dec_layers, dec_hidden_size).to(device), Decoder(F * n1, k1, dec_layers, dec_hidden_size).to(device)])
+                else:
+                    decoder_list.append([Decoder((1 + F) * n2, F * n2, dec_layers, dec_hidden_size).to(device), Decoder((1 + F) * n1, F * n1, dec_layers, dec_hidden_size).to(device)])
+            #encoder_list = [Encoder(k1, n1, enc_layers, enc_hidden_size).to(device), Encoder(k2, n2, enc_layers, enc_hidden_size).to(device)]
+            #decoder_list = [Decoder(n2, k2, dec_layers, dec_hidden_size).to(device), Decoder(n1, k1, dec_layers, dec_hidden_size).to(device)]
             
             for i in range(len(encoder_list)):
-                encoder_list[i].load_state_dict(torch.load(PATH + f'model_product_{model:.2f}db_{clip}.pth')[f'encoder{i}'])
+                encoder_list[i].load_state_dict(torch.load(PATH + f'model_product_article_{model:.2f}db_{clip}.pth')[f'encoder{i}'])
             for i in range(len(decoder_list)):
-                decoder_list[i].load_state_dict(torch.load(PATH + f'model_product_{model:.2f}db_{clip}.pth')[f'decoder{i}'])
+                decoder_list[i][0].load_state_dict(torch.load(PATH + f'model_product_article_{model:.2f}db_{clip}.pth')[f'decoder{i}_0'])
+                decoder_list[i][1].load_state_dict(torch.load(PATH + f'model_product_article_{model:.2f}db_{clip}.pth')[f'decoder{i}_1'])
             
             b=[]
 
@@ -42,25 +53,12 @@ def snr_vs_ber(snr = np.linspace(1, 5, 9),
                 dataset.update_dataset()
                 sz = 0
                 for iws in dataloader:
-                    cur = iws.detach().clone() 
-                    for enc in encoder_list:
-                        cur = enc(cur)
-                        cur = torch.permute(cur, (0,2,1))
-                    encoded = cur
-                    encoded = encoded.reshape((batch_size, n1*n2))
+                    enc_data = encoder_pipeline(encoder_list, iws.detach().clone())
+                    enc_data = torch.clamp(enc_data, min_clip, max_clip)
+                    enc_data_noise = add_noise(enc_data, snr_db).reshape(-1, n1, n2)
+                    dec_data = decoder_pipeline(decoder_list, enc_data_noise)
                     
-                    enc_norm = normalize_power(encoded)
-                    enc_norm_noise = add_noise(enc_norm, snr_db)
-                    
-                    cur = enc_norm_noise
-                    cur = cur.reshape((batch_size, n1, n2))
-
-                    for dec in decoder_list:
-                        cur = torch.permute(cur, (0,2,1))
-                        cur = dec(cur)
-                    decoded = cur
-                    
-                    decoded = binarize(-1*decoded.detach().numpy())
+                    decoded = binarize(-1*dec_data.detach().numpy())
                     sz += np.sum(decoded != iws.numpy())
                 b.append(sz / (num_samples*k1*k2))
             ber_dict[(str(model), clip)] = b

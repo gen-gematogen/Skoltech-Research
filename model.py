@@ -10,6 +10,7 @@ from torch import nn
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 F = 3
+I = 4
 k1 = 8
 n1 = 16
 k2 = 8
@@ -60,13 +61,13 @@ class Decoder(nn.Module):
         layers = []
 
         # # first decoder 
-        layers.append(nn.Linear(n, hidden_size))
+        layers.append(nn.Linear(k, hidden_size))
         layers.append(nn.SELU())
         # last decoder
         for _ in range(dec_layers):
             layers.append(nn.Linear(hidden_size, hidden_size))
             layers.append(nn.SELU())
-        layers.append(nn.Linear(hidden_size, k))
+        layers.append(nn.Linear(hidden_size, n))
         
         #layers.append(nn.Tanh())
 
@@ -98,8 +99,8 @@ class InfWordDataset(torch.utils.data.Dataset):
 
 def encoder_pipeline(encoder_pair, x):
     for enc in encoder_pair:
-        x = enc(x)
         x = torch.permute(x, (0,2,1))
+        x = enc(x)
     encoded = x.reshape((batch_size, n1*n2))
     enc_norm = normalize_power(encoded)
     return enc_norm
