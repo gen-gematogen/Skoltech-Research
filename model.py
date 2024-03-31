@@ -9,6 +9,7 @@ from torch import nn
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+F = 3
 k1 = 8
 n1 = 16
 k2 = 8
@@ -135,6 +136,22 @@ def pipeline(encoder_list, decoder_list, enc_optimizer_list, dec_optimizer_list,
     
     return loss
 
+def decoder_pipeline(decoder_list, dec_optimizer_list, loss_fn, y, freeze_dec = True):
+    for i, decoder_pair in enumerate(decoder_list[:-1]):
+        if i == 0:
+            y_2 = decoder_pair[0](y).reshape(-1, F * n1, n2)
+        else:
+            y_2_out = decoder_pair[0](y_22_in)
+            y_2 = (y_2_out - y_21_in).reshape(-1, F * n1, n2)
+            
+        y_1_in = torch.cat((y, y_2), 1).permute((0, 2, 1))
+        y_1 = decoder_pair[1](y_1_in).permute((0,2,1))
+        y_21_in = (y_1 - y_2).reshape(-1, n1, F * n2)
+        y_22_in = torch.cat((y, y_21_in), 2)
+    y_2 = decoder_list[-1][0](y_22_in).reshape(-1, F * n1, k2)
+    y_1 = decoder_list[-1][1](y_2.permute((0, 2, 1)))
+    u = y_1.reshape(-1, k1, k2)
+    return u
 
 def add_noise(message, snr_db):
     sigma = torch.sqrt(1/(2*10**(snr_db/10)))
