@@ -32,6 +32,26 @@ if __name__ == '__main__':
             for epoch in range(num_decoder_epochs):
                 dataset.update_dataset()
                 for iws in dataloader:
+                    for e in dec_optimizer_list:
+                        e.zero_grad()
+                    
+                    enc_data = encoder_pipeline(encoder_list, iws.detach().clone())
+                    enc_data = torch.clamp(enc_data, min_clip, max_clip)
+                    enc_data_noise = add_noise(enc_data, snr_db).reshape(-1, n1, n2)
+                    dec_data = decoder_pipeline(decoder_list, enc_data_noise)
+                    
+                    loss = loss_fn(-1*dec_data, iws)
+                    loss.backward()
+                    
+                    for e in dec_optimizer_list:
+                        e.step()
+
+            pbar.set_description(f"Decoder training, loss: {loss.item():.6f}, epoch: {global_ep_idx}")
+            print()
+            
+            for epoch in range(num_encoder_epochs):
+                dataset.update_dataset()
+                for iws in dataloader:
                     for e in enc_optimizer_list:
                         e.zero_grad()
                     
@@ -46,18 +66,9 @@ if __name__ == '__main__':
                     for e in enc_optimizer_list:
                         e.step()
 
-            pbar.set_description(f"Decoder training, loss: {loss.item():.6f}, epoch: {global_ep_idx}")
-            print()
-            
-            for epoch in range(num_encoder_epochs):
-                dataset.update_dataset()
-                for iws in dataloader:
-                    loss = pipeline(encoder_list, decoder_list, enc_optimizer_list, dec_optimizer_list, loss_fn, iws, freeze_enc=False, freeze_dec=True)
-
             pbar.set_description(f"Encoder training, loss: {loss.item():.6f}, epoch: {global_ep_idx}")
             print()
-            # print(f'{time.time()-start_time}s per global epoch')
-
+            
         torch.save(
             {
                 'encoder0': encoder_list[0].state_dict(),
