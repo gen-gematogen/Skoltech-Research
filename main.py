@@ -7,15 +7,16 @@ import time
 import sys
 from tqdm import tqdm
 from model import *
-from draw_pictures import *
+from draw_pictures import * 
 
 
 if __name__ == '__main__':
     if sys.argv[1] == 'train':
+        print(f"{device=}")
         snr_db = torch.tensor(float(sys.argv[2]), dtype=torch.float, device=device)
 
         encoder_list = [Encoder(k1, n1, enc_layers, enc_hidden_size).to(device), Encoder(k2, n2, enc_layers, enc_hidden_size).to(device)]
-        
+
         decoder_list = []
         for i in range(I):
             if i == 0:
@@ -24,9 +25,9 @@ if __name__ == '__main__':
                 decoder_list.append([Decoder((1 + F) * n2, F * k2, dec_layers, dec_hidden_size).to(device), Decoder(F * n1, k1, dec_layers, dec_hidden_size).to(device)])
             else:
                 decoder_list.append([Decoder((1 + F) * n2, F * n2, dec_layers, dec_hidden_size).to(device), Decoder((1 + F) * n1, F * n1, dec_layers, dec_hidden_size).to(device)])
-        
+
         enc_optimizer_list = [torch.optim.Adam(enc.parameters(), lr=encoder_learning_rate) for enc in encoder_list]
-        
+
         dec_optimizer_list = []
         for i in range(I):
             dec_optimizer_list.append([torch.optim.Adam(dec.parameters(), lr=decoder_learning_rate) for dec in decoder_list[i]])
@@ -39,9 +40,9 @@ if __name__ == '__main__':
 
         for global_ep_idx in pbar:
             start_time = time.time()
-            if global_ep_idx % 2 == 0:
-                min_clip += 0.1
-                max_clip -= 0.1
+            #if global_ep_idx % 5 == 0:
+            #    min_clip += 0.1
+            #    max_clip -= 0.1
             for epoch in range(num_decoder_epochs):
                 dataset.update_dataset()
                 for iws in dataloader:
@@ -50,7 +51,7 @@ if __name__ == '__main__':
                         e[1].zero_grad()
                     
                     enc_data = encoder_pipeline(encoder_list, iws.detach().clone())
-                    enc_data = torch.clamp(enc_data, min_clip, max_clip)
+                    #enc_data = torch.clamp(enc_data, min_clip, max_clip)
                     enc_data_noise = add_noise(enc_data, snr_db).reshape(-1, n1, n2)
                     dec_data = decoder_pipeline(decoder_list, enc_data_noise)
                     
@@ -71,7 +72,7 @@ if __name__ == '__main__':
                         e.zero_grad()
                     
                     enc_data = encoder_pipeline(encoder_list, iws.detach().clone())
-                    enc_data = torch.clamp(enc_data, min_clip, max_clip)
+                    #enc_data = torch.clamp(enc_data, min_clip, max_clip)
                     enc_data_noise = add_noise(enc_data, snr_db).reshape(-1, n1, n2)
                     dec_data = decoder_pipeline(decoder_list, enc_data_noise)
                     
