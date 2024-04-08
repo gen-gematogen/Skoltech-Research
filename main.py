@@ -43,7 +43,7 @@ if __name__ == '__main__':
             #if global_ep_idx % 5 == 0:
             #    min_clip += 0.1
             #    max_clip -= 0.1
-            for epoch in range(num_decoder_epochs):
+            for epoch in tqdm(range(num_decoder_epochs), position=0, leave=True):
                 dataset.update_dataset()
                 for iws in dataloader:
                     for e in dec_optimizer_list:
@@ -96,4 +96,5 @@ if __name__ == '__main__':
             networks,
             f'model_product_article_{snr_db.cpu().numpy():.2f}db_clip.pth')
     elif sys.argv[1] == 'test':
+        print(f"{device=}")
         snr_vs_ber()

@@ -17,8 +17,8 @@ def snr_vs_ber(snr = np.linspace(1, 5, 9),
     Generate SNR vs FER plots for different models
     '''
 
-    clip_list = ['clip']
-    model_list = [1.0]
+    clip_list = ['prod']
+    model_list = [2.0]
     snr = np.linspace(-10,10,21)
     ber_dict = dict()
 
@@ -38,10 +38,10 @@ def snr_vs_ber(snr = np.linspace(1, 5, 9),
             #decoder_list = [Decoder(n2, k2, dec_layers, dec_hidden_size).to(device), Decoder(n1, k1, dec_layers, dec_hidden_size).to(device)]
             
             for i in range(len(encoder_list)):
-                encoder_list[i].load_state_dict(torch.load(PATH + f'model_product_article_{model:.2f}db_{clip}.pth')[f'encoder{i}'])
+                encoder_list[i].load_state_dict(torch.load(PATH + f'model_{model:.2f}db_{clip}.pth')[f'encoder{i}'])
             for i in range(len(decoder_list)):
-                decoder_list[i][0].load_state_dict(torch.load(PATH + f'model_product_article_{model:.2f}db_{clip}.pth')[f'decoder{i}_0'])
-                decoder_list[i][1].load_state_dict(torch.load(PATH + f'model_product_article_{model:.2f}db_{clip}.pth')[f'decoder{i}_1'])
+                decoder_list[i][0].load_state_dict(torch.load(PATH + f'model_{model:.2f}db_{clip}.pth')[f'decoder{i}_0'])
+                decoder_list[i][1].load_state_dict(torch.load(PATH + f'model_{model:.2f}db_{clip}.pth')[f'decoder{i}_1'])
             
             b=[]
 
