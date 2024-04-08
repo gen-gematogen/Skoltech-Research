@@ -7,28 +7,28 @@ import numpy as np
 import torch
 from torch import nn
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda' if torch.cuda.is_available() else 'mps')
 
 F = 3
 I = 4
-k1 = 8
-n1 = 16
-k2 = 8
-n2 = 16
-enc_layers = 3
-dec_layers = 3
-enc_hidden_size = 96
-dec_hidden_size = 96
-num_decoder_epochs = 400
-num_encoder_epochs = 200
-total_num_epochs = 10#30
-min_clip = -1.6
-max_clip = 1.6
-num_samples = int(5e2)#int(5e3)
-batch_size = int(5e1)#int(5e2)
+k1 = 10
+n1 = 15
+k2 = 10
+n2 = 15
+enc_layers = 7
+dec_layers = 7
+enc_hidden_size = 200
+dec_hidden_size = 250
+num_decoder_epochs = 500
+num_encoder_epochs = 100
+total_num_epochs = 30
+#min_clip = -1.6
+#max_clip = 1.6
+num_samples = int(5e4)
+batch_size = int(5e3)
 snr_db = torch.tensor(2, dtype=torch.float, device=device)
-encoder_learning_rate = 1e-4#2e-5
-decoder_learning_rate = 1e-4#2e-5
+encoder_learning_rate = 2e-4#2e-5
+decoder_learning_rate = 2e-4#2e-5
 
 
 class Encoder(nn.Module):
