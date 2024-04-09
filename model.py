@@ -18,8 +18,8 @@ dec_hidden_size = 96
 num_decoder_epochs = 400
 num_encoder_epochs = 200
 total_num_epochs = 30
-min_clip = -1.6
-max_clip = 1.6
+#min_clip = -1.6
+#max_clip = 1.6
 num_samples = int(5e3)
 batch_size = int(5e2)
 snr_db = torch.tensor(2, dtype=torch.float, device=device)

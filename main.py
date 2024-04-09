@@ -25,9 +25,9 @@ if __name__ == '__main__':
 
         for global_ep_idx in pbar:
             start_time = time.time()
-            if global_ep_idx % 5 == 0:
-                min_clip += 0.1
-                max_clip -= 0.1
+            #if global_ep_idx % 5 == 0:
+            #    min_clip += 0.1
+            #    max_clip -= 0.1
             for epoch in range(num_decoder_epochs):
                 dataset.update_dataset()
                 for iws in dataloader:
@@ -35,9 +35,9 @@ if __name__ == '__main__':
                     encoded = encoder(iws)
                     enc_norm = normalize_power(encoded)
                     
-                    enc_clip = torch.clamp(enc_norm, min_clip, max_clip)
+                    #enc_clip = torch.clamp(enc_norm, min_clip, max_clip)
                     
-                    enc_norm_noise = add_noise(enc_clip, snr_db)
+                    enc_norm_noise = add_noise(enc_norm, snr_db)
                     decoded = decoder(enc_norm_noise)
                     loss = loss_fn(-1*decoded, iws)
                     loss.backward()
@@ -53,9 +53,9 @@ if __name__ == '__main__':
                     encoded = encoder(iws)
                     enc_norm = normalize_power(encoded)
                     
-                    enc_clip = torch.clamp(enc_norm, min_clip, max_clip)
+                    #enc_clip = torch.clamp(enc_norm, min_clip, max_clip)
                     
-                    enc_norm_noise = add_noise(enc_clip, snr_db)
+                    enc_norm_noise = add_noise(enc_norm, snr_db)
                     decoded = decoder(enc_norm_noise)
                     loss = loss_fn(-1*decoded, iws)
                     loss.backward()
