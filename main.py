@@ -43,7 +43,7 @@ if __name__ == '__main__':
             #if global_ep_idx % 5 == 0:
             #    min_clip += 0.1
             #    max_clip -= 0.1
-            for epoch in range(num_decoder_epochs):
+            for epoch in tqdm(range(num_decoder_epochs), position=0, leave=True):
                 dataset.update_dataset()
                 for iws in dataloader:
                     for e in dec_optimizer_list:
@@ -52,7 +52,8 @@ if __name__ == '__main__':
                     
                     enc_data = encoder_pipeline(encoder_list, iws.detach().clone())
                     #enc_data = torch.clamp(enc_data, min_clip, max_clip)
-                    enc_data_noise = add_noise(enc_data, snr_db).reshape(-1, n1, n2)
+                    cur_snr = torch.tensor(torch.randn(1) * 3.5 - 2.5 + float(sys.argv[2]), dtype=torch.float, device=device)
+                    enc_data_noise = add_noise(enc_data, cur_snr).reshape(-1, n1, n2)
                     dec_data = decoder_pipeline(decoder_list, enc_data_noise)
                     
                     loss = loss_fn(-1*dec_data, iws)
