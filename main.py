@@ -97,4 +97,5 @@ if __name__ == '__main__':
             networks,
             f'model_product_article_{snr_db.cpu().numpy():.2f}db_clip.pth')
     elif sys.argv[1] == 'test':
+        print(f"{device=}")
         snr_vs_ber()

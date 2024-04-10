@@ -35,8 +35,6 @@ def snr_vs_ber(snr = np.linspace(1, 5, 9),
                     decoder_list.append([Decoder((1 + F) * n2, F * k2, dec_layers, dec_hidden_size).to(device), Decoder(F * n1, k1, dec_layers, dec_hidden_size).to(device)])
                 else:
                     decoder_list.append([Decoder((1 + F) * n2, F * n2, dec_layers, dec_hidden_size).to(device), Decoder((1 + F) * n1, F * n1, dec_layers, dec_hidden_size).to(device)])
-            #encoder_list = [Encoder(k1, n1, enc_layers, enc_hidden_size).to(device), Encoder(k2, n2, enc_layers, enc_hidden_size).to(device)]
-            #decoder_list = [Decoder(n2, k2, dec_layers, dec_hidden_size).to(device), Decoder(n1, k1, dec_layers, dec_hidden_size).to(device)]
             
             for i in range(len(encoder_list)):
                 encoder_list[i].load_state_dict(torch.load(PATH + f'model_product_article_{model:.2f}db_{clip}.pth')[f'encoder{i}'])
