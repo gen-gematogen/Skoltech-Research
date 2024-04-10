@@ -11,30 +11,27 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'mps')
 
 F = 3
 I = 4
-k1 = 10
-n1 = 15
-k2 = 10
-n2 = 15
-enc_layers = 7
-dec_layers = 7
-enc_hidden_size = 200
-dec_hidden_size = 250
-num_decoder_epochs = 500
-num_encoder_epochs = 100
+k1 = 5#10
+n1 = 10#15
+k2 = 5#10
+n2 = 10#15
+enc_layers = 3#7
+dec_layers = 3#7
+enc_hidden_size = 100 #200
+dec_hidden_size = 125 #250
+num_decoder_epochs = 500#500
+num_encoder_epochs = 100#100
 total_num_epochs = 30
-#min_clip = -1.6
-#max_clip = 1.6
-num_samples = int(5e4)
+num_samples = int(1e5) #int(5e4)
 batch_size = int(5e3)
 snr_db = torch.tensor(2, dtype=torch.float, device=device)
-encoder_learning_rate = 2e-4#2e-5
-decoder_learning_rate = 2e-4#2e-5
+encoder_learning_rate = 2e-4
+decoder_learning_rate = 2e-4
 
 
 class Encoder(nn.Module):
     def __init__(self, k, n, enc_layers, hidden_size):
         super().__init__()
-        # self.flatten = nn.Flatten()
 
         layers = []
 

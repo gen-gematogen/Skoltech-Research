@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from model import *
 
 
-PATH = "/Users/gennady/Skoltech/Research/networks/"
+PATH = "/home/shutkov/Skoltech-Research/networks/"
 
 def snr_vs_ber(snr = np.linspace(1, 5, 9),
                model_list = np.linspace(1.0, 1.0, 1),
@@ -17,10 +17,11 @@ def snr_vs_ber(snr = np.linspace(1, 5, 9),
     Generate SNR vs FER plots for different models
     '''
 
-    clip_list = ['clip']
-    model_list = [1.0]
-    snr = np.linspace(-10,10,21)
+    clip_list = ['5']
+    model_list = [2.0]
+    snr = np.linspace(0, 5, 10)
     ber_dict = dict()
+    torch.no_grad()
 
     for model in model_list:
         for clip in clip_list:
@@ -39,10 +40,12 @@ def snr_vs_ber(snr = np.linspace(1, 5, 9),
             
             for i in range(len(encoder_list)):
                 encoder_list[i].load_state_dict(torch.load(PATH + f'model_product_article_{model:.2f}db_{clip}.pth')[f'encoder{i}'])
+                encoder_list[i].eval()
             for i in range(len(decoder_list)):
                 decoder_list[i][0].load_state_dict(torch.load(PATH + f'model_product_article_{model:.2f}db_{clip}.pth')[f'decoder{i}_0'])
                 decoder_list[i][1].load_state_dict(torch.load(PATH + f'model_product_article_{model:.2f}db_{clip}.pth')[f'decoder{i}_1'])
-            
+                decoder_list[i][0].eval()
+                decoder_list[i][1].eval()
             b=[]
 
             for v, s in enumerate(snr):
@@ -54,13 +57,13 @@ def snr_vs_ber(snr = np.linspace(1, 5, 9),
                 sz = 0
                 for iws in dataloader:
                     enc_data = encoder_pipeline(encoder_list, iws.detach().clone())
-                    enc_data = torch.clamp(enc_data, min_clip, max_clip)
+                    # enc_data = torch.clamp(enc_data, min_clip, max_clip)
                     enc_data_noise = add_noise(enc_data, snr_db).reshape(-1, n1, n2)
                     dec_data = decoder_pipeline(decoder_list, enc_data_noise)
                     
-                    decoded = binarize(-1*dec_data.detach().numpy())
-                    sz += np.sum(decoded != iws.numpy())
-                b.append(sz / (num_samples*k1*k2))
+                    decoded = binarize(-1*dec_data.detach())
+                    sz += torch.sum(decoded != iws)
+                b.append((sz / (num_samples*k1*k2)).item())
             ber_dict[(str(model), clip)] = b
 
 
@@ -75,10 +78,10 @@ def snr_vs_ber(snr = np.linspace(1, 5, 9),
             bin_enc = bin_enc.reshape((batch_size, k1*k2))
             enc_norm = normalize_power(bin_enc)
             enc_norm_noise = add_noise(enc_norm, torch.tensor(s, dtype=torch.float, device=device))
-            decoded = binarize(enc_norm_noise.detach().numpy())
+            decoded = binarize(enc_norm_noise.detach())
             decoded = decoded.reshape((batch_size, k1, k2))
-            sz += np.sum(decoded != iws.detach().numpy())    
-        b.append(sz / (num_samples*k1*k2))
+            sz += torch.sum(decoded != iws)    
+        b.append((sz / (num_samples*k1*k2)).item())
     ber_dict['Uncoded'] = b
     
     # b = []
@@ -117,9 +120,10 @@ def snr_vs_ber(snr = np.linspace(1, 5, 9),
     plt.ylabel("BER")
     plt.title("BER vs SNR for topology from article")
     plt.yscale('log')
-    plt.yticks([1e-3, 1e-2, 1e-1, 1])
+    #plt.yticks([1e-3, 1e-2, 1e-1, 1])
     plt.legend()
-    plt.show()
+    plt.savefig("ber_vs_snr.png")
+    #plt.show()
         
 def encoded_distribution():
     '''
