@@ -1,0 +1,1 @@
+{"F": 3, "I": 4, "k1": 5, "n1": 10, "k2": 5, "n2": 10, "enc_layers": 3, "dec_layers": 3, "enc_hidden_size": 100, "dec_hidden_size": 125, "num_decoder_epochs": 500, "num_encoder_epochs": 100, "total_num_epochs": 30, "num_samples": 100000, "batch_size": 5000, "encoder_learning_rate": 0.0002, "decoder_learning_rate": 0.0002}

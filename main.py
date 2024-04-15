@@ -5,6 +5,7 @@ Main file to process the command line arguments and call required functions
 import matplotlib.pyplot as plt
 import time
 import sys
+import json
 from tqdm import tqdm
 from model import *
 from draw_pictures import * 
@@ -14,6 +15,14 @@ if __name__ == '__main__':
     if sys.argv[1] == 'train':
         print(f"{device=}")
         snr_db = torch.tensor(float(sys.argv[2]), dtype=torch.float, device=device)
+
+        config_file = sys.argv[3]
+        with open(f"configs/{config_file}", 'r') as in_f:
+            data = json.load(in_f)
+            globals().update(data) # dirty trick that can cause random vulnarabilities
+
+        print(globals())
+
 
         encoder_list = [Encoder(k1, n1, enc_layers, enc_hidden_size).to(device), Encoder(k2, n2, enc_layers, enc_hidden_size).to(device)]
 
