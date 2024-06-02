@@ -21,7 +21,6 @@ def snr_vs_ber(snr = np.linspace(1, 5, 9),
     enc_hidden_size_ = [200]
     dec_hidden_size_ = [250]
 
-
     model_list = ['3.00db_final']
     snr = np.linspace(0, 5, 11)
     ber_dict = dict()
@@ -48,7 +47,6 @@ def snr_vs_ber(snr = np.linspace(1, 5, 9),
             decoder_list[i][0].eval()
             decoder_list[i][1].eval()
         b=[]
-
         for v, s in enumerate(snr):
             snr_db = torch.tensor(s, dtype=torch.float, device=device)
             dataset = InfWordDataset(k1, k2, num_samples, device)
@@ -66,7 +64,6 @@ def snr_vs_ber(snr = np.linspace(1, 5, 9),
                 sz += torch.sum(decoded != iws)
             b.append((sz / (num_samples*k1*k2)).item())
         ber_dict[model] = b
-
 
     b = []
     for v, s in enumerate(snr):
