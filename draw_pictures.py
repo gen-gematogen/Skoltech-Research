@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from model import *
 
 
-PATH = "/Users/gennady/Skoltech/Research/networks/"
+PATH = "/home/shutkov/Skoltech-Research/"
 
 def snr_vs_ber(snr = np.linspace(1, 5, 9),
                model_list = np.linspace(1.0, 1.0, 1),
@@ -16,52 +16,56 @@ def snr_vs_ber(snr = np.linspace(1, 5, 9),
     '''
     Generate SNR vs FER plots for different models
     '''
+    enc_layers_ = [7]
+    dec_layers_ = [7]
+    enc_hidden_size_ = [200]
+    dec_hidden_size_ = [250]
 
-    clip_list = ['prod']
-    model_list = [2.0]
-    snr = np.linspace(-10,10,21)
+
+    model_list = ['3.00db_final']
+    snr = np.linspace(0, 5, 11)
     ber_dict = dict()
+    torch.no_grad()
 
-    for model in model_list:
-        for clip in clip_list:
-            encoder_list = [Encoder(k1, n1, enc_layers, enc_hidden_size).to(device), Encoder(k2, n2, enc_layers, enc_hidden_size).to(device)]
-            
-            decoder_list = []
-            for i in range(I):
-                if i == 0:
-                    decoder_list.append([Decoder(n2, F * n2, dec_layers, dec_hidden_size).to(device), Decoder((1 + F) * n1, F * n1, dec_layers, dec_hidden_size).to(device)])
-                elif i == I - 1:
-                    decoder_list.append([Decoder((1 + F) * n2, F * k2, dec_layers, dec_hidden_size).to(device), Decoder(F * n1, k1, dec_layers, dec_hidden_size).to(device)])
-                else:
-                    decoder_list.append([Decoder((1 + F) * n2, F * n2, dec_layers, dec_hidden_size).to(device), Decoder((1 + F) * n1, F * n1, dec_layers, dec_hidden_size).to(device)])
-            #encoder_list = [Encoder(k1, n1, enc_layers, enc_hidden_size).to(device), Encoder(k2, n2, enc_layers, enc_hidden_size).to(device)]
-            #decoder_list = [Decoder(n2, k2, dec_layers, dec_hidden_size).to(device), Decoder(n1, k1, dec_layers, dec_hidden_size).to(device)]
-            
-            for i in range(len(encoder_list)):
-                encoder_list[i].load_state_dict(torch.load(PATH + f'model_{model:.2f}db_{clip}.pth')[f'encoder{i}'])
-            for i in range(len(decoder_list)):
-                decoder_list[i][0].load_state_dict(torch.load(PATH + f'model_{model:.2f}db_{clip}.pth')[f'decoder{i}_0'])
-                decoder_list[i][1].load_state_dict(torch.load(PATH + f'model_{model:.2f}db_{clip}.pth')[f'decoder{i}_1'])
-            
-            b=[]
+    for model, enc_layers, dec_layers, enc_hidden_size, dec_hidden_size in zip(model_list, enc_layers_, dec_layers_, enc_hidden_size_, dec_hidden_size_):
+        encoder_list = [Encoder(k1, n1, enc_layers, enc_hidden_size).to(device), Encoder(k2, n2, enc_layers, enc_hidden_size).to(device)]
+        
+        decoder_list = []
+        for i in range(I):
+            if i == 0:
+                decoder_list.append([Decoder(n2, F * n2, dec_layers, dec_hidden_size).to(device), Decoder((1 + F) * n1, F * n1, dec_layers, dec_hidden_size).to(device)])
+            elif i == I - 1:
+                decoder_list.append([Decoder((1 + F) * n2, F * k2, dec_layers, dec_hidden_size).to(device), Decoder(F * n1, k1, dec_layers, dec_hidden_size).to(device)])
+            else:
+                decoder_list.append([Decoder((1 + F) * n2, F * n2, dec_layers, dec_hidden_size).to(device), Decoder((1 + F) * n1, F * n1, dec_layers, dec_hidden_size).to(device)])
+        
+        for i in range(len(encoder_list)):
+            encoder_list[i].load_state_dict(torch.load(PATH + f'model_product_article_{model}.pth')[f'encoder{i}'])
+            encoder_list[i].eval()
+        for i in range(len(decoder_list)):
+            decoder_list[i][0].load_state_dict(torch.load(PATH + f'model_product_article_{model}.pth')[f'decoder{i}_0'])
+            decoder_list[i][1].load_state_dict(torch.load(PATH + f'model_product_article_{model}.pth')[f'decoder{i}_1'])
+            decoder_list[i][0].eval()
+            decoder_list[i][1].eval()
+        b=[]
 
-            for v, s in enumerate(snr):
-                snr_db = torch.tensor(s, dtype=torch.float, device=device)
-                dataset = InfWordDataset(k1, k2, num_samples, device)
-                dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size)
+        for v, s in enumerate(snr):
+            snr_db = torch.tensor(s, dtype=torch.float, device=device)
+            dataset = InfWordDataset(k1, k2, num_samples, device)
+            dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size)
 
-                dataset.update_dataset()
-                sz = 0
-                for iws in dataloader:
-                    enc_data = encoder_pipeline(encoder_list, iws.detach().clone())
-                    enc_data = torch.clamp(enc_data, min_clip, max_clip)
-                    enc_data_noise = add_noise(enc_data, snr_db).reshape(-1, n1, n2)
-                    dec_data = decoder_pipeline(decoder_list, enc_data_noise)
-                    
-                    decoded = binarize(-1*dec_data.detach().numpy())
-                    sz += np.sum(decoded != iws.numpy())
-                b.append(sz / (num_samples*k1*k2))
-            ber_dict[(str(model), clip)] = b
+            dataset.update_dataset()
+            sz = 0
+            for iws in dataloader:
+                enc_data = encoder_pipeline(encoder_list, iws.detach().clone())
+                # enc_data = torch.clamp(enc_data, min_clip, max_clip)
+                enc_data_noise = add_noise(enc_data, snr_db).reshape(-1, n1, n2)
+                dec_data = decoder_pipeline(decoder_list, enc_data_noise)
+                
+                decoded = binarize(-1*dec_data.detach())
+                sz += torch.sum(decoded != iws)
+            b.append((sz / (num_samples*k1*k2)).item())
+        ber_dict[model] = b
 
 
     b = []
@@ -75,10 +79,10 @@ def snr_vs_ber(snr = np.linspace(1, 5, 9),
             bin_enc = bin_enc.reshape((batch_size, k1*k2))
             enc_norm = normalize_power(bin_enc)
             enc_norm_noise = add_noise(enc_norm, torch.tensor(s, dtype=torch.float, device=device))
-            decoded = binarize(enc_norm_noise.detach().numpy())
+            decoded = binarize(enc_norm_noise.detach())
             decoded = decoded.reshape((batch_size, k1, k2))
-            sz += np.sum(decoded != iws.detach().numpy())    
-        b.append(sz / (num_samples*k1*k2))
+            sz += torch.sum(decoded != iws)    
+        b.append((sz / (num_samples*k1*k2)).item())
     ber_dict['Uncoded'] = b
     
     # b = []
@@ -105,21 +109,26 @@ def snr_vs_ber(snr = np.linspace(1, 5, 9),
     # ber_dict['Minimal distance decoding'] = b
     
     # ber_dict['Gaussian (16, 8) code'] = [4.08333333e-03, 1.75000000e-03, 5.00000000e-04, 3.12500000e-04, 6.25000000e-05, 0.00000000e+00, 0.00000000e+00, 0.00000000e+00, 0.00000000e+00]
-    
+   
+    ber_dict['TPC (16, 11) code'] = [2.06e-02, 8.47e-03, 3.62e-03, 1.57e-03, 6.64e-04, 2.64e-04, 1.27e-04, 5.94e-05, 2.60e-05, 1.11e-05, 3.74e-06]
+
+    labels = ['(15, 10) autoenc', 'Uncoded', 'TPC (16, 11)']
+
     plt.figure(figsize=(10, 5))
-    for q in ber_dict:
+    for q, label in zip(ber_dict, labels):
         if len(q) != 2:
-            plt.plot(snr, ber_dict[q], label = q, linestyle='--', marker='o')
+            plt.plot(snr, ber_dict[q], label = label, linestyle='--', marker='o')
         else:
-            plt.plot(snr, ber_dict[q], label = f"SNR: {q[0]}, {q[1]}", linestyle='--', marker='d')
+            plt.plot(snr, ber_dict[q], label = label, linestyle='--', marker='d')
     plt.grid()
     plt.xlabel("SNR")
     plt.ylabel("BER")
     plt.title("BER vs SNR for topology from article")
     plt.yscale('log')
-    plt.yticks([1e-3, 1e-2, 1e-1, 1])
+    #plt.yticks([1e-3, 1e-2, 1e-1, 1])
     plt.legend()
-    plt.show()
+    plt.savefig("ber_vs_snr.png")
+    #plt.show()
         
 def encoded_distribution():
     '''

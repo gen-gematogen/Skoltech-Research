@@ -5,9 +5,11 @@ Implementation of the Network architecture
 import itertools
 import numpy as np
 import torch
+import os
 from torch import nn
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'mps')
+
+device = torch.device('cuda:1' if torch.cuda.is_available() else 'mps')
 
 F = 3
 I = 4
@@ -19,22 +21,18 @@ enc_layers = 7
 dec_layers = 7
 enc_hidden_size = 200
 dec_hidden_size = 250
-num_decoder_epochs = 500
-num_encoder_epochs = 100
-total_num_epochs = 30
-#min_clip = -1.6
-#max_clip = 1.6
-num_samples = int(5e4)
-batch_size = int(5e3)
-snr_db = torch.tensor(2, dtype=torch.float, device=device)
-encoder_learning_rate = 2e-4#2e-5
-decoder_learning_rate = 2e-4#2e-5
-
+num_decoder_epochs = 250
+num_encoder_epochs = 50
+total_num_epochs = 30#30
+num_samples = int(1e5)#int(1e5) #int(5e4)
+batch_size = int(1e3)
+encoder_learning_rate = 1e-3#2e-4
+decoder_learning_rate = 1e-3#2e-4
+lr_schedule = 0.97
 
 class Encoder(nn.Module):
     def __init__(self, k, n, enc_layers, hidden_size):
         super().__init__()
-        # self.flatten = nn.Flatten()
 
         layers = []
 
@@ -160,3 +158,20 @@ def gen_codebook(encoder_list):
         cur = torch.permute(cur, (0,2,1))    
     
     return (words, cur.detach().numpy())
+
+def dump_model(encoder_list, decoder_list, snr_db):
+    print("Dumped current best model")
+    networks = dict()
+    for i in range(len(encoder_list)):
+        networks[f'encoder{i}'] = encoder_list[i].state_dict()
+    for i in range(len(decoder_list)):
+        networks[f'decoder{i}_0'] = decoder_list[i][0].state_dict()
+        networks[f'decoder{i}_1'] = decoder_list[i][1].state_dict()
+    
+    #for i in ['', '_1', '_2', '_3']:
+    f_name = f'model_product_article_{snr_db.cpu().numpy():.2f}db_{k1}_{n1}_fast.pth'
+    #    if not os.path.isfile(f_name): 
+    torch.save(
+        networks,
+        f_name)
+
